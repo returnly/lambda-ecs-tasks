@@ -1,0 +1,2 @@
+voluptuous
+cfn-lambda-handler
