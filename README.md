@@ -215,3 +215,18 @@ The following table describes the various properties you can configure when crea
 | Overrides      | Optional task definition overrides to apply to the specified task definition.                                                                                                                                                                                                                                                                                                                        | No       |               |
 | Instances      | Optional list of ECS container instances to run the task on.  If specified, you must use the ARN of each ECS container instance.                                                                                                                                                                                                                                                                     | No       |               |
 | Triggers       | List of triggers that can be used to trigger updates to this resource, based upon changes to other resources.  This property is ignored by the Lambda function.  
+
+# License
+
+Copyright (C) 2017.  Case Commons, Inc.
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+See www.gnu.org/licenses/agpl.html
