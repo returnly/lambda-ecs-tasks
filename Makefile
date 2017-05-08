@@ -3,7 +3,7 @@ export PROJECT_NAME ?= lambda-ecs-tasks
 
 # Parameters
 export FUNCTION_NAME ?= cfnEcsTasks
-S3_BUCKET ?= 160775127577-cfn-lambda
+S3_BUCKET ?= 429614120872-cfn-lambda
 AWS_DEFAULT_REGION ?= us-west-2
 
 include Makefile.settings
