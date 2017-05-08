@@ -1,14 +1,39 @@
 from voluptuous import Required, All, Any, Range, Schema, Length
 
 def ToInt(value):
-  return int(value)
+  if isinstance(value, int):
+    return value
+  if isinstance(value, basestring) and value.isdigit():
+    return int(value)
+  else:
+    raise ValueError
 
-# Validation Helper
 def ToBool(value):
-  if value.lower() in ['true','yes']:
+  if isinstance(value, bool):
+    return value
+  if isinstance(value, basestring) and value.lower() in ['true','yes']:
     return True
-  elif value.lower() in ['false','no']:
+  if isinstance(value, basestring) and value.lower() in ['false','no']:
     return False
+  else:
+    raise ValueError
+
+# For Overrides, which must specify all values as strings
+def DictToString(value):
+  def string_values(node):
+    if type(node) is dict:
+      result={}
+      for k,v in node.iteritems():
+        result[k] = string_values(v)
+    elif type(node) is list:
+      result=[]
+      for v in node:
+        result.append(string_values(v))
+    else:
+      result = str(node)
+    return result
+  if isinstance(value, dict):
+    return string_values(value)
   else:
     raise ValueError
 
@@ -25,7 +50,7 @@ def get_validator():
   })]),
   Required('Timeout', default=290): All(ToInt, Range(min=10)),
   Required('PollInterval', default=10): All(ToInt, Range(min=10, max=60)),
-  Required('Overrides', default=dict()): All(dict),
+  Required('Overrides', default=dict()): All(DictToString),
   Required('Instances', default=list()): All(list, Length(max=10)),
 }, extra=True)
 
