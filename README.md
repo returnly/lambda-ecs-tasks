@@ -17,7 +17,7 @@ To build the function and its dependencies:
 
 `make build`
 
-This will create the necessary dependencies in the `src` folder and create a ZIP package in the `target` folder.  This file is suitable for upload to the AWS Lambda service to create a Lambda function.
+This will create the necessary dependencies in the `src` folder and create a ZIP package in the `build` folder.  This file is suitable for upload to the AWS Lambda service to create a Lambda function.
 
 ```
 $ make build
@@ -33,7 +33,7 @@ updating: vendor/cfn_lambda_handler.pyc (deflated 62%)
 updating: requirements.txt (stored 0%)
 updating: setup.cfg (stored 0%)
 updating: ecs_tasks.py (deflated 63%)
-=> Built target/cfnEcsTasks.zip
+=> Built build/cfnEcsTasks.zip
 ```
 
 ### Function Naming
@@ -64,7 +64,7 @@ This will upload the built ZIP package to the configured S3 bucket.
 $ make publish
 ...
 ...
-=> Built target/cfnEcsTasks.zip
+=> Built build/cfnEcsTasks.zip
 => Publishing cfnEcsTasks.zip to s3://429614120872-cfn-lambda...
 => Published to S3 URL: https://s3.amazonaws.com/429614120872-cfn-lambda/cfnEcsTasks.zip
 => S3 Object Version: gyujkgVKoH.NVeeuLYTi_7n_NUburwa4
@@ -127,6 +127,12 @@ Resources:
         PolicyDocument:
           Version: "2012-10-17"
           Statement:
+          - Sid: "InvokeSelf"
+            Effect: "Allow"
+            Action:
+              - "lambda:InvokeFunction"
+            Resource:
+              Fn::Sub: "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}-ecsTasks"
           - Sid: "TaskDefinition"
             Effect: "Allow"
             Action:
