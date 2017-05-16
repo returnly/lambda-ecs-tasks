@@ -6,14 +6,13 @@ from fixtures import required_property, invalid_property
 from cfn_lambda_handler import CfnLambdaExecutionTimeout
 
 # Test task is not run on stack rollback when RunOnRollback is false
-def test_run_when_run_on_rollback_disabled(ecs_tasks, cfn_mgr, update_event, context, time):
+def test_no_run_when_run_on_rollback_disabled(ecs_tasks, cfn_mgr, update_event, context, time):
   ecs_tasks.cfn_mgr = cfn_mgr
   update_event['ResourceProperties']['RunOnRollback'] = u'False'
   response = ecs_tasks.handle_update(update_event, context)
-  # assert ecs_tasks.task_mgr.client.describe_task_definition.called
   assert cfn_mgr.client.describe_stacks.called
-  assert ecs_tasks.task_mgr.client.run_task.called
-  assert ecs_tasks.task_mgr.client.describe_tasks.called
+  assert not ecs_tasks.task_mgr.client.run_task.called
+  assert not ecs_tasks.task_mgr.client.describe_tasks.called
   assert response['Status'] == 'SUCCESS'
   assert response['PhysicalResourceId'] == fixtures.PHYSICAL_RESOURCE_ID
 

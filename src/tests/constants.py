@@ -105,7 +105,7 @@ DESCRIBE_STACKS_RESULT = {
     'Capabilities': ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'], 
     'StackName': STACK_NAME, 
     'NotificationARNs': [], 
-    'StackStatus': 'UPDATE_COMPLETE', 
+    'StackStatus': 'ROLLBACK_IN_PROGRESS', 
     'DisableRollback': False, 
     'LastUpdatedTime': datetime.datetime(2017, 3, 17, 22, 8, 34, 728000, tzinfo=tzutc())
   }]
