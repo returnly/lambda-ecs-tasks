@@ -23,4 +23,4 @@ ARG function_name
 RUN zip -9 -r ../${function_name}.zip * -x *.pyc -x requirements_test.txt -x tests/ -x tests/**\*
 
 # Run tests
-CMD ["pytest", "--junitxml", "report.xml"]
+CMD ["pytest", "-vv", "--junitxml", "report.xml"]
