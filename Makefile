@@ -2,7 +2,7 @@
 export PROJECT_NAME ?= lambda-ecs-tasks
 
 # Parameters
-export FUNCTION_NAME ?= cfnEcsTasks
+export FUNCTION_NAME ?= ecsTasks
 S3_BUCKET ?= 429614120872-cfn-lambda
 AWS_DEFAULT_REGION ?= us-west-2
 
