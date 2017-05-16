@@ -10,9 +10,10 @@ TEST_PROJECT := $(PROJECT_NAME)$(BUILD_ID)
 S3_OBJECT_VERSION = $$(aws s3api list-object-versions --bucket $(S3_BUCKET) --prefix $(FUNCTION_NAME) | jq '.Versions[] | select(.IsLatest==true) | .VersionId' -r)
 
 # Arguments
+ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 TEST_ARGS = -p $(TEST_PROJECT) -f $(TEST_COMPOSE_FILE) $(VERBOSE_FLAG)
-VERBOSE_FLAG = $(if $(VERBOSE),--verbose,)
-PULL_FLAG = $(if $(findstring false,$(PULL)),,--pull)
+VERBOSE_FLAG = $(if $(findstring /verbose,$(ARGS)),--verbose,)
+PULL_FLAG = $(if $(findstring /nopull,$(ARGS)),,--pull)
 
 # Set shell
 SHELL=/bin/bash -e -o pipefail
