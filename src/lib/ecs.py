@@ -1,15 +1,20 @@
 from functools import partial
+from .utils import paginated_response
 import boto3
 
 class EcsTaskFailureError(Exception):
-    def __init__(self,tasks):
-        self.tasks = tasks
-        self.failures = tasks.get('failures')
+    def __init__(self,task):
+        self.task = task
+        self.failures = task.get('failures')
 
 class EcsTaskExitCodeError(Exception):
-    def __init__(self,tasks,non_zero):
-        self.tasks = tasks
+    def __init__(self,task,non_zero):
+        self.task = task
         self.non_zero = non_zero
+
+class EcsTaskTimeoutError(Exception):
+    def __init__(self,task):
+        self.task = task
 
 class EcsTaskManager:
   """Handles ECS Tasks"""
@@ -23,7 +28,7 @@ class EcsTaskManager:
     
   def list_container_instances(self, cluster):
     func = partial(self.client.list_container_instances,cluster=cluster)
-    return self.paginated_response(func, 'containerInstanceArns')
+    return paginated_response(func, 'containerInstanceArns')
 
   def start_task(self, cluster, task_definition, overrides, count, started_by, instances):
     if instances:
@@ -52,22 +57,18 @@ class EcsTaskManager:
 
   def list_tasks(self, cluster, **kwargs):
     func = partial(self.client.list_tasks,cluster=cluster,**kwargs)
-    return self.paginated_response(func, 'taskArns')
+    return paginated_response(func, 'taskArns')
 
   def stop_task(self, cluster, task, reason='unknown'):
     return self.client.stop_task(cluster=cluster, task=task, reason=reason)
 
-  def paginated_response(self, func, result_key, next_token=None):
-    '''
-    Returns expanded response for paginated operations.
-    The 'result_key' is used to define the concatenated results that are combined from each paginated response.
-    '''
-    args=dict()
-    if next_token:
-        args['NextToken'] = next_token
-    response = func(**args)
-    result = response.get(result_key)
-    next_token = response.get('NextToken')
-    if not next_token:
-       return result
-    return result + self.paginated_response(func, result_key, next_token)
+  # Checks ECS task completion
+  def check_status(self, tasks):
+    stats = [t.get('lastStatus') for t in tasks]
+    if 'PENDING' in stats:
+      status = 'PENDING'
+    elif 'RUNNING' in stats:
+      status = 'RUNNING'
+    else:
+      status = 'STOPPED'
+    return status

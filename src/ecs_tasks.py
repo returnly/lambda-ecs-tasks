@@ -9,9 +9,13 @@ import json
 from datetime import datetime
 from cfn_lambda_handler import Handler, CfnLambdaExecutionTimeout
 from hashlib import md5
-from lib import EcsTaskManager, EcsTaskFailureError, EcsTaskExitCodeError
-from lib import validate
-from lib import error_handler
+from lib import CfnManager
+from lib import EcsTaskManager, EcsTaskFailureError, EcsTaskExitCodeError, EcsTaskTimeoutError
+from lib import validate_cfn
+from lib import cfn_error_handler
+
+# Stack rollback states
+ROLLBACK_STATES = ['ROLLBACK_IN_PROGRESS','UPDATE_ROLLBACK_IN_PROGRESS']
 
 # Set handler as the entry point for Lambda
 handler = Handler()
@@ -21,8 +25,9 @@ logging.basicConfig()
 log = logging.getLogger()
 log.setLevel(logging.INFO)
 
-# ECS Task Manager
+# AWS services
 task_mgr = EcsTaskManager()
+cfn_mgr = CfnManager()
 
 # Starts an ECS task
 def start(task):
@@ -80,6 +85,8 @@ def poll(task, remaining_time):
   poll_interval = task['PollInterval'] or 10
   task_result = task['TaskResult']
   while True:
+    if task['CreationTime'] + task['Timeout'] < int(time.time()):
+      raise EcsTaskTimeoutError(task)
     if remaining_time() < (poll_interval + 5) * 1000:
       task['TaskResult'] = task_result
       raise CfnLambdaExecutionTimeout(task)
@@ -94,21 +101,24 @@ def poll(task, remaining_time):
 # Start and poll task
 def start_and_poll(task, context):
   task['TaskResult'] = start(task)
-  task['TaskResult'] = poll(task,context.get_remaining_time_in_millis)
-  log.info("Task completed successfully with result: %s" % format_json(task['TaskResult']))
+  log.info("Task created successfully with result: %s" % format_json(task['TaskResult']))
+  if task['Timeout'] > 0:
+    task['TaskResult'] = poll(task,context.get_remaining_time_in_millis)
+    log.info("Task completed successfully with result: %s" % format_json(task['TaskResult']))
   return next(t['taskArn'] for t in task['TaskResult']['tasks'])
 
 # Create task
 def create_task(event):
-  task = validate(event['ResourceProperties'])
+  task = validate_cfn(event['ResourceProperties'])
   task['StartedBy'] = get_task_id(event['StackId'],event['LogicalResourceId'])
   event['Timeout'] = task['Timeout']
+  task['CreationTime'] = event['CreationTime']
   log.info('Received task %s' % format_json(task))
   return task
 
 # Event handlers
 @handler.poll
-@error_handler
+@cfn_error_handler
 def handle_poll(event, context):
   log.info('Received poll event %s' % str(event))
   task = event.get('EventState')
@@ -117,7 +127,7 @@ def handle_poll(event, context):
   return {"Status": "SUCCESS", "PhysicalResourceId": task['StartedBy']}
 
 @handler.create
-@error_handler
+@cfn_error_handler
 def handle_create(event, context):
   log.info('Received create event %s' % str(event))
   task = create_task(event)
@@ -126,28 +136,32 @@ def handle_create(event, context):
   return event
 
 @handler.update
-@error_handler
+@cfn_error_handler
 def handle_update(event, context):
   log.info('Received update event %s' % str(event))
   task = create_task(event)
   update_criteria = task['UpdateCriteria']
-  if task['RunOnUpdate'] and task['Count'] > 0:
-    old_task = validate(event.get('OldResourceProperties'))
-    if update_criteria:
+  should_run = task['RunOnUpdate'] and task['Count'] > 0
+  if should_run:
+    old_task = validate_cfn(event.get('OldResourceProperties'))
+    if not task['RunOnRollback']:
+      stack_status = cfn_mgr.get_stack_status(event['StackId'])
+      should_run = stack_status not in ROLLBACK_STATES
+    if update_criteria and should_run:
       old_values = get_task_definition_values(old_task['TaskDefinition'],update_criteria)
       new_values = get_task_definition_values(task['TaskDefinition'],update_criteria)
       if old_values != new_values:
         event['PhysicalResourceId'] = start_and_poll(task, context)
-    else:
+    elif should_run:
       event['PhysicalResourceId'] = start_and_poll(task, context)
   return event
   
 @handler.delete
-@error_handler
+@cfn_error_handler
 def handle_delete(event, context):
   log.info('Received delete event %s' % str(event))
   task = create_task(event)
   tasks = task_mgr.list_tasks(cluster=task['Cluster'], startedBy=task['StartedBy'])
   for t in tasks:
-    service_mgr.stop_task(cluster=task['Cluster'], task=t, reason='Delete requested for %s' % event.get('StackId'))
+    service_mgr.stop_task(cluster=task['Cluster'], task=t, reason='Delete requested for %s' % event['StackId'])
   return event

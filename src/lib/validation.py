@@ -38,7 +38,7 @@ def DictToString(value):
     raise ValueError
 
 # Validation Helper
-def get_validator():
+def get_cfn_validator():
   return Schema({
   Required('Cluster'): Any(str, unicode),
   Required('TaskDefinition'): Any(str, unicode),
@@ -48,13 +48,34 @@ def get_validator():
     Required('Container'): Any(str, unicode),
     Required('EnvironmentKeys'): All(list)
   })]),
-  Required('Timeout', default=290): All(ToInt, Range(min=10)),
+  Required('RunOnRollback', default=True): All(ToBool),
+  Required('Timeout', default=290): All(ToInt, Range(min=0, max=3600)),
   Required('PollInterval', default=10): All(ToInt, Range(min=10, max=60)),
   Required('Overrides', default=dict()): All(DictToString),
   Required('Instances', default=list()): All(list, Length(max=10)),
 }, extra=True)
 
 # Validation Helper
-def validate(data):
-  request_validator = get_validator()
+def get_ecs_validator():
+  return Schema({
+  Required('Cluster'): Any(str, unicode),
+  Required('TaskDefinition'): Any(str, unicode),
+  Required('Count', default=1): All(ToInt, Range(min=1, max=10)),
+  Required('Overrides', default=dict()): All(DictToString),
+  Required('Instances', default=list()): All(list, Length(max=10)),
+  Required('Tasks', default=list()): All(list),
+  Required('Status', default=''): Any(str, unicode),
+  Required('StartedBy', default='admin'): Any(str, unicode),
+  Required('Timeout', default=3600): All(ToInt, Range(min=60, max=604800)),
+  Required('Poll', default=10): All(ToInt, Range(min=10, max=3600))
+}, extra=True)
+
+# Validation Helper
+def validate_ecs(data):
+  request_validator = get_ecs_validator()
+  return request_validator(data)
+
+# Validation Helper
+def validate_cfn(data):
+  request_validator = get_cfn_validator()
   return request_validator(data)
