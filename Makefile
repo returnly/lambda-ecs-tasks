@@ -44,3 +44,7 @@ clean:
 	@ ${INFO} "Removing all distributions..."
 	@ rm -rf src/*.pyc src/vendor build
 	${INFO} "Clean complete"
+
+# IMPORTANT - ensures arguments are not interpreted as make targets
+%:
+	@:
