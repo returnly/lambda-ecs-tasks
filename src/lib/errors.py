@@ -25,7 +25,7 @@ def ecs_error_handler(func):
       event['Reason'] = "One or more containers failed with a non-zero exit code: %s" % e.non_zero
     except EcsTaskTimeoutError as e:
       event['Status'] = "FAILED"
-      event['Reason'] = "The task failed to complete with the specified timeout of %s seconds" % e.task['Timeout']
+      event['Reason'] = "The task failed to complete with the specified timeout of %s seconds" % e.timeout
     except Exception as e:
       event['Status'] = "FAILED"
       event['Reason'] = "An error occurred: %s" % e
@@ -38,17 +38,19 @@ def ecs_error_handler(func):
 def cfn_error_handler(func):
   def handle_task_result(event, context):
     try:
-      event['Status'] = 'SUCCESS'
       event = func(event, context)
     except EcsTaskFailureError as e:
       event['Status'] = "FAILED"
       event['Reason'] = "A task failure occurred: %s" % e.failures
+      event['PhysicalResourceId'] = e.taskArn or event['PhysicalResourceId']
     except EcsTaskExitCodeError as e:
       event['Status'] = "FAILED"
       event['Reason'] = "One or more containers failed with a non-zero exit code: %s" % e.non_zero
+      event['PhysicalResourceId'] = e.taskArn or event['PhysicalResourceId']
     except EcsTaskTimeoutError as e:
       event['Status'] = "FAILED"
-      event['Reason'] = "The task failed to complete with the specified timeout of %s seconds" % e.task['Timeout']
+      event['Reason'] = "The task failed to complete with the specified timeout of %s seconds" % e.timeout
+      event['PhysicalResourceId'] = e.taskArn or event['PhysicalResourceId']
     except CfnLambdaExecutionTimeout:
       raise
     except (Invalid, MultipleInvalid) as e:

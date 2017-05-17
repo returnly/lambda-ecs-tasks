@@ -159,6 +159,7 @@ def test_run_task_non_zero_exit_code(ecs_tasks, create_update_handlers, context,
   assert ecs_tasks.task_mgr.client.run_task.called
   assert ecs_tasks.task_mgr.client.describe_tasks.called
   assert response['Status'] == 'FAILED'
+  assert response['PhysicalResourceId'] == fixtures.PHYSICAL_RESOURCE_ID
   assert 'One or more containers failed with a non-zero exit code' in response['Reason']
 
 # Test for ECS task that does not complete within Lambda execution timeout
@@ -176,7 +177,6 @@ def test_run_task_execution_timeout(ecs_tasks, create_update_handlers, context, 
 def test_create_new_task_completion_timeout(ecs_tasks, create_update_handlers, context, time, now):
   # Now returns time in the future past the timeout
   now.return_value += 120
-  ecs_tasks.task_mgr.client.describe_tasks.return_value = fixtures.RUNNING_TASK_RESULT
   handler = getattr(ecs_tasks, create_update_handlers[0])
   event = create_update_handlers[1]
   event['ResourceProperties']['Timeout'] = 60
@@ -184,6 +184,7 @@ def test_create_new_task_completion_timeout(ecs_tasks, create_update_handlers, c
   assert ecs_tasks.task_mgr.client.run_task.called
   assert not ecs_tasks.task_mgr.client.describe_tasks.called
   assert response['Status'] == 'FAILED'
+  assert response['PhysicalResourceId'] == fixtures.PHYSICAL_RESOURCE_ID
   assert 'The task failed to complete with the specified timeout of 60 seconds' in response['Reason']
 
 # Test for missing required properties in custom resource 
@@ -193,9 +194,9 @@ def test_missing_property(ecs_tasks, handlers, required_property, context, time)
   del event['ResourceProperties'][required_property]
   response = ecs_tasks.handle_create(event,context)
   assert response['Status'] == 'FAILED'
+  assert 'One or more invalid event properties' in response['Reason']
   assert ecs_tasks.task_mgr.client.run_task.was_not_called
   assert ecs_tasks.task_mgr.client.describe_tasks.was_not_called
-  assert 'One or more invalid event properties' in response['Reason']
 
 # Test for invalid properties in custom resource 
 def test_invalid_property(ecs_tasks, handlers, invalid_property, context, time):
@@ -204,6 +205,6 @@ def test_invalid_property(ecs_tasks, handlers, invalid_property, context, time):
   event['ResourceProperties'][invalid_property[0]] = invalid_property[1]
   response = handler(event,context)
   assert response['Status'] == 'FAILED'
+  assert 'One or more invalid event properties' in response['Reason']
   assert ecs_tasks.task_mgr.client.run_task.was_not_called
   assert ecs_tasks.task_mgr.client.describe_tasks.was_not_called
-  assert 'One or more invalid event properties' in response['Reason']

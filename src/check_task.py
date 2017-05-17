@@ -23,7 +23,7 @@ def check_timeout(event):
   now = parse(datetime.datetime.utcnow().isoformat() + 'Z')
   creation = parse(event['CreateTimestamp'])
   if now > creation + datetime.timedelta(seconds=event['Timeout']):
-    raise EcsTaskTimeoutError(event)
+    raise EcsTaskTimeoutError(event['Tasks'], creation, event['Timeout'])
 
 # Checks ECS task exit codes
 def check_exit_codes(tasks):

@@ -3,18 +3,23 @@ from .utils import paginated_response
 import boto3
 
 class EcsTaskFailureError(Exception):
-    def __init__(self,task):
+    def __init__(self, task):
         self.task = task
+        self.taskArn = next((t['taskArn'] for t in task.get('tasks')),None)
         self.failures = task.get('failures')
 
 class EcsTaskExitCodeError(Exception):
-    def __init__(self,task,non_zero):
+    def __init__(self, task, non_zero):
         self.task = task
+        self.taskArn = next((t['taskArn'] for t in task),None)
         self.non_zero = non_zero
 
 class EcsTaskTimeoutError(Exception):
-    def __init__(self,task):
-        self.task = task
+    def __init__(self, tasks, creation, timeout):
+        self.creation = creation
+        self.timeout = timeout
+        self.tasks = tasks
+        self.taskArn = next((t['taskArn'] for t in tasks),None)
 
 class EcsTaskManager:
   """Handles ECS Tasks"""

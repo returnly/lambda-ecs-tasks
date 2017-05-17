@@ -83,27 +83,26 @@ def check_exit_codes(task_result):
 # Polls an ECS task for completion 
 def poll(task, remaining_time):
   poll_interval = task.get('PollInterval') or 10
-  task_result = task['TaskResult']
   while True:
+    task_result = task['TaskResult']
     if task['CreationTime'] + task['Timeout'] < int(time.time()):
-      raise EcsTaskTimeoutError(task)
+      raise EcsTaskTimeoutError(task['TaskResult']['tasks'], task['CreationTime'], task['Timeout'])
     if remaining_time() < (poll_interval + 5) * 1000:
-      task['TaskResult'] = task_result
       raise CfnLambdaExecutionTimeout(task)
     if not check_complete(task_result):
       log.info("Task(s) have not yet completed, checking again in %s seconds..." % poll_interval)
       time.sleep(poll_interval)
-      task_result = describe_tasks(task['Cluster'], task_result)
+      task['TaskResult'] = describe_tasks(task['Cluster'], task_result)
     else:
-      check_exit_codes(task_result)
-      return task_result
+      check_exit_codes(task['TaskResult'])
+      return
 
 # Start and poll task
 def start_and_poll(task, context):
   task['TaskResult'] = start(task)
   log.info("Task created successfully with result: %s" % format_json(task['TaskResult']))
   if task['Timeout'] > 0:
-    task['TaskResult'] = poll(task,context.get_remaining_time_in_millis)
+    poll(task,context.get_remaining_time_in_millis)
     log.info("Task completed successfully with result: %s" % format_json(task['TaskResult']))
   return next(t['taskArn'] for t in task['TaskResult']['tasks'])
 
@@ -122,7 +121,7 @@ def create_task(event):
 def handle_poll(event, context):
   log.info('Received poll event %s' % str(event))
   task = event.get('EventState')
-  task['TaskResult'] = poll(task, context.get_remaining_time_in_millis)
+  poll(task, context.get_remaining_time_in_millis)
   log.info("Task completed with result: %s" % task['TaskResult'])
   return {
     "Status": "SUCCESS", 

@@ -115,6 +115,7 @@ def ecs_tasks():
 # CFN Create Request
 @pytest.fixture
 def create_event():
+  import ecs_tasks
   return {
     u'StackId': unicode(STACK_ID),
     u'ResponseURL': u'https://cloudformation-custom-resource-response-uswest2.s3-us-west-2.amazonaws.com/arn%3Aaws%3Acloudformation%3Aus-west-2%3A429614120872%3Astack/intake-accelerator-dev/12947b30-d31a-11e6-93df-503acbd4dc61%7CMyLogGroup%7C720958cb-c5b7-4225-b12f-e7c5ab6c499b?AWSAccessKeyId=AKIAI4KYMPPRGIACET5Q&Expires=1483789136&Signature=GoZZ7Leg5xRsKq1hjU%2FO81oeJmw%3D',
@@ -128,7 +129,9 @@ def create_event():
     'CreationTime': NOW,
     u'ServiceToken': unicode(FUNCTION_ARN),
     u'RequestId': unicode(REQUEST_ID),
-    u'LogicalResourceId': unicode(LOGICAL_RESOURCE_ID)
+    u'LogicalResourceId': unicode(LOGICAL_RESOURCE_ID),
+    u'Status': 'SUCCESS',
+    u'PhysicalResourceId': ecs_tasks.get_task_id(STACK_ID,LOGICAL_RESOURCE_ID)
   }
 
 # CFN Update Request
