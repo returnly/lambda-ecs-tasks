@@ -110,3 +110,7 @@ DESCRIBE_STACKS_RESULT = {
     'LastUpdatedTime': datetime.datetime(2017, 3, 17, 22, 8, 34, 728000, tzinfo=tzutc())
   }]
 }
+
+LIST_TASKS_RESULT = {
+  'taskArns': [ PHYSICAL_RESOURCE_ID ]
+}

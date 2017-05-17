@@ -1,9 +1,20 @@
 import pytest
 import fixtures
 from fixtures import context, ecs_tasks, handlers, create_update_handlers, time, now, cfn_mgr
-from fixtures import update_event
+from fixtures import update_event, delete_event
 from fixtures import required_property, invalid_property
 from cfn_lambda_handler import CfnLambdaExecutionTimeout
+
+# Test running task is stopped on delete
+def test_running_task_is_stopped_on_delete(ecs_tasks, delete_event, context, time):
+  response = ecs_tasks.handle_delete(delete_event, context)
+  assert not ecs_tasks.task_mgr.client.run_task.called
+  assert not ecs_tasks.task_mgr.client.describe_tasks.called
+  assert ecs_tasks.task_mgr.client.list_tasks.called
+  assert ecs_tasks.task_mgr.client.stop_task.called
+  assert response['Status'] == 'SUCCESS'
+  assert response['PhysicalResourceId'] == fixtures.PHYSICAL_RESOURCE_ID
+
 
 # Test task is not run on stack rollback when RunOnRollback is false
 def test_no_run_when_run_on_rollback_disabled(ecs_tasks, cfn_mgr, update_event, context, time):

@@ -105,6 +105,8 @@ def ecs_tasks():
     client.run_task.return_value = START_TASK_RESULT
     client.describe_tasks.return_value = STOPPED_TASK_RESULT
     client.describe_task_definition.side_effect = lambda taskDefinition: TASK_DEFINITION_RESULTS[taskDefinition]
+    client.list_tasks.side_effect = [LIST_TASKS_RESULT]
+    client.stop_task.side_effect = [STOPPED_TASK_RESULT]
     task_mgr = EcsTaskManager()
     task_mgr.client = client
     ecs_tasks.task_mgr = task_mgr
