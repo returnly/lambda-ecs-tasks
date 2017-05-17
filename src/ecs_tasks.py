@@ -163,5 +163,5 @@ def handle_delete(event, context):
   task = create_task(event)
   tasks = task_mgr.list_tasks(cluster=task['Cluster'], startedBy=task['StartedBy'])
   for t in tasks:
-    service_mgr.stop_task(cluster=task['Cluster'], task=t, reason='Delete requested for %s' % event['StackId'])
+    task_mgr.stop_task(cluster=task['Cluster'], task=t, reason='Delete requested for %s' % event['StackId'])
   return event
