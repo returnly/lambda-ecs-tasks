@@ -23,7 +23,7 @@ handler = Handler()
 # Configure logging
 logging.basicConfig()
 log = logging.getLogger()
-log.setLevel(logging.INFO)
+log.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
 
 # AWS services
 task_mgr = EcsTaskManager()

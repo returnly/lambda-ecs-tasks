@@ -11,8 +11,9 @@ from lib import validate_ecs
 from lib import ecs_error_handler
 
 # Configure logging
-logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
+logging.basicConfig()
 log = logging.getLogger()
+log.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
 
 # ECS Task Manager
 task_mgr = EcsTaskManager()
