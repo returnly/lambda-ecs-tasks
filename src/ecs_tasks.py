@@ -82,7 +82,7 @@ def check_exit_codes(task_result):
 
 # Polls an ECS task for completion 
 def poll(task, remaining_time):
-  poll_interval = task['PollInterval'] or 10
+  poll_interval = task.get('PollInterval') or 10
   task_result = task['TaskResult']
   while True:
     if task['CreationTime'] + task['Timeout'] < int(time.time()):
@@ -122,9 +122,12 @@ def create_task(event):
 def handle_poll(event, context):
   log.info('Received poll event %s' % str(event))
   task = event.get('EventState')
-  task['TaskResult'] = poll(task, event, context)
+  task['TaskResult'] = poll(task, context.get_remaining_time_in_millis)
   log.info("Task completed with result: %s" % task['TaskResult'])
-  return {"Status": "SUCCESS", "PhysicalResourceId": task['StartedBy']}
+  return {
+    "Status": "SUCCESS", 
+    "PhysicalResourceId": next(t['taskArn'] for t in task['TaskResult']['tasks'])
+  }
 
 @handler.create
 @cfn_error_handler
