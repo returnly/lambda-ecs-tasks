@@ -1,9 +1,70 @@
 import pytest
 import fixtures
 from fixtures import context, ecs_tasks, handlers, create_update_handlers, time, now, cfn_mgr
-from fixtures import update_event, delete_event
+from fixtures import create_event, update_event, delete_event
 from fixtures import required_property, invalid_property
 from cfn_lambda_handler import CfnLambdaExecutionTimeout
+
+# Test poll request completes successfully
+def test_poll_task_completes(ecs_tasks, create_event, context, time):
+  # The 10000 value will trigger a CfnLambdaExecutionTimeout event
+  context.get_remaining_time_in_millis.side_effect = [20000,10000,20000,20000]
+  # The ECS task will be running on first poll and will complete on second poll
+  ecs_tasks.task_mgr.client.describe_tasks.side_effect = [fixtures.RUNNING_TASK_RESULT,fixtures.STOPPED_TASK_RESULT]
+  # Simulated create event
+  with pytest.raises(CfnLambdaExecutionTimeout) as e:
+    response = ecs_tasks.handle_create(create_event, context)
+  # Simulated poll event
+  poll_event = create_event
+  poll_event['EventState'] = e.value.state
+  assert poll_event['EventState']['TaskResult'] == fixtures.RUNNING_TASK_RESULT
+  # Process the poll request during which the task will complete
+  response = ecs_tasks.handle_poll(poll_event, context)
+  assert ecs_tasks.task_mgr.client.run_task.call_count == 1
+  assert ecs_tasks.task_mgr.client.describe_tasks.call_count == 2
+  assert response['Status'] == 'SUCCESS'
+  assert response['PhysicalResourceId'] == fixtures.PHYSICAL_RESOURCE_ID
+
+# Test poll request fails after maximum timeout 
+def test_poll_task_timeout(ecs_tasks, create_event, context, time, now):
+  create_event['ResourceProperties']['Timeout'] = 3600
+  context.get_remaining_time_in_millis.side_effect = [20000,10000]
+  ecs_tasks.task_mgr.client.describe_tasks.side_effect = lambda cluster,tasks: fixtures.RUNNING_TASK_RESULT
+  # Simulated create event
+  with pytest.raises(CfnLambdaExecutionTimeout) as e:
+    response = ecs_tasks.handle_create(create_event, context)
+  # Run a polling loop
+  poll_event = create_event
+  poll_event['EventState'] = e.value.state
+  completed = False
+  while not completed:
+    # Fast forward 60 seconds
+    now.return_value += 60
+    # Let the handler check task status once and then run out of execution time
+    context.get_remaining_time_in_millis.side_effect = [20000,10000]
+    try:
+      # Process the poll request - the task will never complete
+      response = ecs_tasks.handle_poll(poll_event, context)
+    except CfnLambdaExecutionTimeout as execution_timeout:
+      poll_event['EventState'] = execution_timeout.state
+    else:
+      # At this point the request has hit absolute timeout and completed
+      completed = True
+  assert ecs_tasks.task_mgr.client.run_task.call_count == 1
+  assert ecs_tasks.task_mgr.client.describe_tasks.call_count == 61
+  assert response['Status'] == 'FAILED'
+  assert 'The task failed to complete with the specified timeout of 3600 seconds' in response['Reason']
+
+# Test delete request when task is already stopped 
+def test_delete_task_stopped(ecs_tasks, delete_event, context, time):
+  ecs_tasks.task_mgr.client.list_tasks.side_effect = [{'taskArns':[]}]
+  response = ecs_tasks.handle_delete(delete_event, context)
+  assert not ecs_tasks.task_mgr.client.run_task.called
+  assert not ecs_tasks.task_mgr.client.describe_tasks.called
+  assert ecs_tasks.task_mgr.client.list_tasks.called
+  assert not ecs_tasks.task_mgr.client.stop_task.called
+  assert response['Status'] == 'SUCCESS'
+  assert response['PhysicalResourceId'] == fixtures.PHYSICAL_RESOURCE_ID
 
 # Test running task is stopped on delete
 def test_running_task_is_stopped_on_delete(ecs_tasks, delete_event, context, time):
@@ -14,7 +75,6 @@ def test_running_task_is_stopped_on_delete(ecs_tasks, delete_event, context, tim
   assert ecs_tasks.task_mgr.client.stop_task.called
   assert response['Status'] == 'SUCCESS'
   assert response['PhysicalResourceId'] == fixtures.PHYSICAL_RESOURCE_ID
-
 
 # Test task is not run on stack rollback when RunOnRollback is false
 def test_no_run_when_run_on_rollback_disabled(ecs_tasks, cfn_mgr, update_event, context, time):
