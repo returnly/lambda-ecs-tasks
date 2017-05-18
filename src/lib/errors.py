@@ -1,5 +1,6 @@
 import logging
 import json
+from datetime import datetime
 from ecs import EcsTaskFailureError, EcsTaskExitCodeError, EcsTaskTimeoutError
 from voluptuous import MultipleInvalid, Invalid
 from cfn_lambda_handler import CfnLambdaExecutionTimeout

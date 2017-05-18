@@ -59,7 +59,7 @@ START_TASK_RESULT = {
     u'overrides': {u'containerOverrides': [{u'name': 'app'}]},
     u'lastStatus': 'PENDING',
     u'containerInstanceArn': 'arn:aws:ecs:%s:%s:container-instance/7de72b16-8e6d-4a22-9317-8c74f15d3382' % (AWS_REGION, AWS_ACCOUNT_ID),
-    u'createdAt': NOW,
+    u'createdAt': UTC,
     u'version': 1,
     u'clusterArn': 'arn:aws:ecs:%s:%s:cluster/%s' % (AWS_REGION, AWS_ACCOUNT_ID, CLUSTER_NAME),
     u'desiredStatus': 'RUNNING',
@@ -77,7 +77,7 @@ START_TASK_RESULT = {
 }
 RUNNING_TASK_RESULT = copy.deepcopy(START_TASK_RESULT)
 RUNNING_TASK_RESULT['tasks'][0]['lastStatus'] = 'RUNNING'
-RUNNING_TASK_RESULT['tasks'][0]['startedAt'] = RUNNING_TASK_RESULT['tasks'][0]['createdAt'] + 2
+RUNNING_TASK_RESULT['tasks'][0]['startedAt'] = RUNNING_TASK_RESULT['tasks'][0]['createdAt'] + datetime.timedelta(0,2)
 RUNNING_TASK_RESULT['tasks'][0]['containers'][0]['lastStatus'] = 'RUNNING'
 RUNNING_TASK_RESULT['tasks'][0]['containers'][0]['networkBindings'] = []
 STOPPED_TASK_RESULT = copy.deepcopy(RUNNING_TASK_RESULT)
