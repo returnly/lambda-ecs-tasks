@@ -148,15 +148,123 @@ $ make publish
 
 The [`ecs_tasks`](src/ecs_tasks.py) function is designed to be called from a CloudFormation template as a custom resource.
 
+In general you should create a Lambda function per CloudFormation stack and then create custom resources that call the Lambda function, rather than create a shared Lambda function shared across multiple stacks.
+
+### Defining the Lambda Function
+
+The following CloudFormation template snippet demonstrates creating the Lambda function, along with supporting CloudWatch Logs and IAM role resources:
+
+> Note this snippet assumes you have an ECS Cluster resource called `ApplicationCluster`, which is used to constrain the IAM privileges assigned to the Lambda function.
+
+```
+...
+Resources:
+  EcsTaskRunnerLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName:
+        Fn::Sub: /aws/lambda/${AWS::StackName}-ecsTasks
+      RetentionInDays: 30
+  EcsTaskRunner:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - EcsTaskRunnerLogGroup
+    Properties:
+      Description: 
+        Fn::Sub: ${AWS::StackName} ECS Task Runner
+      Handler: ecs_tasks.handler
+      MemorySize: 128
+      Runtime: python2.7
+      Timeout: 300
+      Role: 
+        Fn::Sub: ${EcsTaskRunnerRole.Arn}
+      FunctionName: 
+        Fn::Sub: ${AWS::StackName}-ecsTasks
+      Code:
+        S3Bucket: 
+          Fn::Sub: ${AWS::AccountId}-cfn-lambda
+        S3Key: ecsTasks.zip
+        S3ObjectVersion: gyujkgVKoH.NVeeuLYTi_7n_NUburwa4
+  EcsTaskRunnerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action:
+            - sts:AssumeRole
+      Policies:
+      - PolicyName: ECSPermissions
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Sid: CheckStackStatus
+            Effect: Allow
+            Action:
+              - cloudformation:DescribeStacks
+            Resource:
+              Fn::Sub: arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/${AWS::StackId}
+          - Sid: InvokeSelf
+            Effect: Allow
+            Action:
+              - lambda:InvokeFunction
+            Resource:
+              Fn::Sub: arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}-ecsTasks
+          - Sid: TaskDefinition
+            Effect: Allow
+            Action:
+            - ecs:DescribeTaskDefinition
+            Resource: "*"
+          - Sid: EcsTasks
+            Effect: Allow
+            Action:
+            - ecs:DescribeTasks
+            - ecs:ListTasks
+            - ecs:RunTask
+            - ecs:StartTask
+            - ecs:StopTask
+            - ecs:DescribeContainerInstances
+            - ecs:ListContainerInstances
+            Resource: "*"
+            Condition:
+              ArnEquals:
+                ecs:cluster: 
+                  Fn::Sub: arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/${ApplicationCluster}
+          - Sid: ManageLambdaLogs
+            Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            - logs:PutRetentionPolicy
+            - logs:PutSubscriptionFilter
+            - logs:DescribeLogStreams
+            - logs:DeleteLogGroup
+            - logs:DeleteRetentionPolicy
+            - logs:DeleteSubscriptionFilter
+            Resource: 
+              Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-ecsTasks:*:*
+...
+...
+```
+
+### Creating Custom Resources that use the Lambda Function
+
 The following custom resource calls this Lambda function when the resource is created, updated or deleted:
 
 ```
   MigrateTask:
-    Type: "Custom::ECSTask"
+    Type: Custom::ECSTask
     Properties:
       ServiceToken: "arn:aws:lambda:us-west-2:012345678901:function:dev-ecsTasks"
-      Cluster: { "Ref": "ApplicationCluster" }
-      TaskDefinition: { "Ref": "ApplicationTaskDefinition" }
+      Cluster:
+        Ref: ApplicationCluster
+      TaskDefinition:
+        Ref: ApplicationTaskDefinition
       Count: 1              
       Timeout: 1800           # The maximum amount of time to wait for the task to complete - defaults to 290 seconds
       RunOnUpdate: True       # Controls if the task should run for update operations - defaults to True
