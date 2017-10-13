@@ -7,7 +7,7 @@ TEST_COMPOSE_FILE := docker/test/docker-compose.yml
 TEST_PROJECT := $(PROJECT_NAME)$(BUILD_ID)
 
 # S3 defaults
-S3_OBJECT_VERSION = $$(aws s3api list-object-versions --bucket $(S3_BUCKET) --prefix $(FUNCTION_NAME) | jq '.Versions[] | select(.IsLatest==true) | .VersionId' -r)
+S3_OBJECT_VERSION = $$(aws --output json s3api list-object-versions --bucket $(S3_BUCKET) --prefix $(FUNCTION_NAME) | jq '.Versions[] | select(.IsLatest==true) | .VersionId' -r)
 
 # Arguments
 ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
